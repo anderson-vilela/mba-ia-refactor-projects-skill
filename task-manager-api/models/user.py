@@ -1,38 +1,40 @@
+from datetime import datetime, timezone
+
 from database import db
-from datetime import datetime
-import hashlib
+from infra.security import hash_password, verify_password
+
+
+def _now_utc():
+    return datetime.now(timezone.utc)
+
 
 class User(db.Model):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(50), default='user')
+    role = db.Column(db.String(50), default="user")
     active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_now_utc)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email,
-            'password': self.password,
-            'role': self.role,
-            'active': self.active,
-            'created_at': str(self.created_at)
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "role": self.role,
+            "active": self.active,
+            "created_at": str(self.created_at),
         }
 
-    def set_password(self, pwd):
+    def set_password(self, plain: str) -> None:
+        self.password = hash_password(plain)
 
-        self.password = hashlib.md5(pwd.encode()).hexdigest()
+    def check_password(self, plain: str) -> bool:
+        return verify_password(plain, self.password)
 
-    def check_password(self, pwd):
-        return self.password == hashlib.md5(pwd.encode()).hexdigest()
-
-    def is_admin(self):
-        if self.role == 'admin':
-            return True
-        else:
-            return False
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
